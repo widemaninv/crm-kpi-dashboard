@@ -17,10 +17,11 @@ type ExtraFieldDef = { key: string; label: string; type: string; required?: bool
 
 const STAGE_EXTRA_FIELDS: Partial<Record<PropertyStage, ExtraFieldDef[]>> = {
   WARM_SIGNED_SUBMITTED: [
-    { key: 'offer_amount', label: 'Offer Price ($)', type: 'number', required: true },
+    { key: 'offer_amount', label: 'Signed Offer Price ($)', type: 'number', required: true },
+    { key: 'underwriting_url', label: 'Offer PDF URL', type: 'url' },
   ],
   SIGNED_ACCEPTED: [
-    { key: 'offer_amount', label: 'Final Accepted Price ($)', type: 'number' },
+    { key: 'offer_amount', label: 'Final Accepted Price ($)', type: 'number', required: true },
   ],
   DUE_DILIGENCE_STARTED: [
     { key: 'due_diligence_start_date', label: 'DD Start Date', type: 'date', required: true },
@@ -36,6 +37,10 @@ const STAGE_EXTRA_FIELDS: Partial<Record<PropertyStage, ExtraFieldDef[]>> = {
   TITLE_CLOSED: [
     { key: 'close_date', label: 'Close Date', type: 'date', required: true },
     { key: 'close_price', label: 'Final Close Price ($)', type: 'number', required: true },
+  ],
+  LOTS_SOLD: [
+    { key: 'num_lots', label: 'Number of Lots', type: 'number' },
+    { key: 'total_lot_proceeds', label: 'Total Lot Proceeds ($)', type: 'number' },
   ],
 }
 
@@ -186,7 +191,7 @@ export default function PropertyDetailPage() {
             <span className="inline-flex px-3 py-1 rounded bg-indigo-100 text-indigo-700 text-sm font-medium">
               {PROPERTY_STAGE_LABELS[property.stage]}
             </span>
-            <div className="text-xs text-gray-400 mt-1">Stage {currentIdx + 4 > 3 ? currentIdx + 4 : 'N/A'} of 20</div>
+            <div className="text-xs text-gray-400 mt-1">Stage {currentIdx + 4} of 20</div>
           </div>
         </div>
 
@@ -240,7 +245,7 @@ export default function PropertyDetailPage() {
 
         {showAdvance && (
           <div className="mt-4 p-4 bg-gray-50 rounded border border-gray-200 space-y-3">
-            <div className="flex gap-3 items-start">
+            <div className="flex gap-3 items-start flex-wrap">
               <select
                 value={selectedNextStage}
                 onChange={e => handleStageSelect(e.target.value as PropertyStage)}
@@ -253,7 +258,7 @@ export default function PropertyDetailPage() {
                 value={advanceNote}
                 onChange={e => setAdvanceNote(e.target.value)}
                 placeholder="Optional note…"
-                className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm"
+                className="flex-1 min-w-[160px] border border-gray-300 rounded px-3 py-2 text-sm"
               />
               <button
                 onClick={advanceStage}
@@ -367,7 +372,7 @@ export default function PropertyDetailPage() {
               <div key={e.id} className="flex items-start gap-3 text-sm">
                 <div className="text-xs text-gray-400 w-32 shrink-0 pt-0.5">{new Date(e.created_at).toLocaleDateString()}</div>
                 <div>
-                  <span className="text-gray-500">{e.from_stage}</span>
+                  <span className="text-gray-500">{PROPERTY_STAGE_LABELS[e.from_stage as PropertyStage] || e.from_stage}</span>
                   <span className="text-gray-400 mx-2">→</span>
                   <span className="font-medium text-gray-800">{PROPERTY_STAGE_LABELS[e.to_stage as PropertyStage] || e.to_stage}</span>
                   {e.note && <div className="text-gray-500 text-xs mt-0.5">{e.note}</div>}

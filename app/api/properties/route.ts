@@ -7,8 +7,8 @@ export async function GET(request: NextRequest) {
   const stage = searchParams.get('stage')
   const hot_zone_id = searchParams.get('hot_zone_id')
   const q = searchParams.get('q')
-  const min_price = searchParams.get('min_price')
-  const max_price = searchParams.get('max_price')
+  const min_price = searchParams.get('min_price') || searchParams.get('price_min')
+  const max_price = searchParams.get('max_price') || searchParams.get('price_max')
 
   let query = supabase
     .from('properties_crm')

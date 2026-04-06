@@ -16,18 +16,22 @@ export default function HotZonesPage() {
   const [showForm, setShowForm] = useState(false)
   const [search, setSearch] = useState('')
   const [stageFilter, setStageFilter] = useState('')
+  const [countyFilter, setCountyFilter] = useState('')
+  const [stateFilter, setStateFilter] = useState('')
   const [form, setForm] = useState({ name: '', county: '', state: '', acreage_min: '', acreage_max: '', avg_price_per_acre: '' })
 
   const load = async () => {
     const params = new URLSearchParams()
     if (search) params.set('q', search)
     if (stageFilter) params.set('stage', stageFilter)
+    if (countyFilter) params.set('county', countyFilter)
+    if (stateFilter) params.set('state', stateFilter)
     const res = await fetch(`/api/hot-zones?${params}`)
     if (res.ok) setZones(await res.json())
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [search, stageFilter])
+  useEffect(() => { load() }, [search, stageFilter, countyFilter, stateFilter])
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -57,13 +61,24 @@ export default function HotZonesPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-3 mb-5">
+      <div className="flex gap-3 mb-5 flex-wrap">
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="Search name, county, state…"
-          className="border border-gray-300 rounded px-3 py-2 text-sm flex-1 max-w-sm"
+          placeholder="Search name…"
+          className="border border-gray-300 rounded px-3 py-2 text-sm flex-1 min-w-[160px]"
         />
+        <input
+          value={countyFilter}
+          onChange={e => setCountyFilter(e.target.value)}
+          placeholder="Filter by county"
+          className="border border-gray-300 rounded px-3 py-2 text-sm w-40"
+        />
+        <select value={stateFilter} onChange={e => setStateFilter(e.target.value)} className="border border-gray-300 rounded px-3 py-2 text-sm">
+          <option value="">All states</option>
+          <option value="TX">Texas</option>
+          <option value="FL">Florida</option>
+        </select>
         <select value={stageFilter} onChange={e => setStageFilter(e.target.value)} className="border border-gray-300 rounded px-3 py-2 text-sm">
           <option value="">All stages</option>
           {Object.entries(HOT_ZONE_STAGE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
