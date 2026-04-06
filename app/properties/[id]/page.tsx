@@ -13,6 +13,32 @@ const STAGE_ORDER: PropertyStage[] = [
   'TITLE_CLOSED','LOT_SUBDIVISION_STARTED','LOTS_SOLD',
 ]
 
+type ExtraFieldDef = { key: string; label: string; type: string; required?: boolean }
+
+const STAGE_EXTRA_FIELDS: Partial<Record<PropertyStage, ExtraFieldDef[]>> = {
+  WARM_SIGNED_SUBMITTED: [
+    { key: 'offer_amount', label: 'Offer Price ($)', type: 'number', required: true },
+  ],
+  SIGNED_ACCEPTED: [
+    { key: 'offer_amount', label: 'Final Accepted Price ($)', type: 'number' },
+  ],
+  DUE_DILIGENCE_STARTED: [
+    { key: 'due_diligence_start_date', label: 'DD Start Date', type: 'date', required: true },
+    { key: 'due_diligence_url', label: 'DD URL', type: 'url' },
+  ],
+  DUE_DILIGENCE_COMPLETED: [
+    { key: 'due_diligence_end_date', label: 'DD Completion Date', type: 'date', required: true },
+  ],
+  FINANCING_CONFIRMED: [
+    { key: 'lender', label: 'Lender Name', type: 'text', required: true },
+    { key: 'financing_confirmed_date', label: 'Confirmed Date', type: 'date', required: true },
+  ],
+  TITLE_CLOSED: [
+    { key: 'close_date', label: 'Close Date', type: 'date', required: true },
+    { key: 'close_price', label: 'Final Close Price ($)', type: 'number', required: true },
+  ],
+}
+
 export default function PropertyDetailPage() {
   const { id } = useParams<{ id: string }>()
   const [property, setProperty] = useState<Property & { hot_zones_crm?: any; lot_sales?: LotSale[]; notes_crm?: Note[]; stage_events?: StageEvent[] } | null>(null)
@@ -26,6 +52,7 @@ export default function PropertyDetailPage() {
   const [advanceNote, setAdvanceNote] = useState('')
   const [showAdvance, setShowAdvance] = useState(false)
   const [selectedNextStage, setSelectedNextStage] = useState<PropertyStage | ''>('')
+  const [extraFields, setExtraFields] = useState<Record<string, string>>({})
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -50,15 +77,30 @@ export default function PropertyDetailPage() {
 
   const advanceStage = async () => {
     if (!selectedNextStage) return
+    const fieldDefs = STAGE_EXTRA_FIELDS[selectedNextStage] || []
+    const parsedExtra: Record<string, unknown> = {}
+    for (const def of fieldDefs) {
+      const val = extraFields[def.key]
+      if (val) {
+        if (def.type === 'number') parsedExtra[def.key] = parseFloat(val)
+        else parsedExtra[def.key] = val
+      }
+    }
     await fetch(`/api/properties/${id}/advance-stage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to_stage: selectedNextStage, note: advanceNote }),
+      body: JSON.stringify({ to_stage: selectedNextStage, note: advanceNote, extra_fields: parsedExtra }),
     })
     setShowAdvance(false)
     setAdvanceNote('')
     setSelectedNextStage('')
+    setExtraFields({})
     await load()
+  }
+
+  const handleStageSelect = (stage: PropertyStage | '') => {
+    setSelectedNextStage(stage)
+    setExtraFields({})
   }
 
   const suggestResponse = async () => {
@@ -116,6 +158,7 @@ export default function PropertyDetailPage() {
   const nextStages = STAGE_ORDER.slice(currentIdx + 1)
   const showMailedResponse = property.stage === 'MAILED_RESPONDED'
   const showLots = property.stage === 'LOT_SUBDIVISION_STARTED' || property.stage === 'LOTS_SOLD'
+  const extraFieldDefs = selectedNextStage ? (STAGE_EXTRA_FIELDS[selectedNextStage] || []) : []
 
   return (
     <div>
@@ -161,12 +204,19 @@ export default function PropertyDetailPage() {
         </div>
 
         {/* Quick details */}
-        <div className="grid grid-cols-4 gap-4 mt-6 text-sm">
-          {property.offer_amount && <div><div className="text-xs text-gray-500">Offer</div><div className="font-medium">${property.offer_amount.toLocaleString()}</div></div>}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 text-sm">
+          {property.offer_amount != null && <div><div className="text-xs text-gray-500">Offer Amount</div><div className="font-medium">${property.offer_amount.toLocaleString()}</div></div>}
           {property.response_type && <div><div className="text-xs text-gray-500">Response</div><div className={`font-medium ${property.response_type === 'WARM' ? 'text-green-600' : 'text-red-500'}`}>{property.response_type}</div></div>}
-          {property.close_price && <div><div className="text-xs text-gray-500">Close Price</div><div className="font-medium">${property.close_price.toLocaleString()}</div></div>}
-          {property.num_lots && <div><div className="text-xs text-gray-500">Lots</div><div className="font-medium">{property.num_lots}</div></div>}
-          {property.underwriting_url && <div><div className="text-xs text-gray-500">Underwriting</div><a href={property.underwriting_url} target="_blank" className="text-indigo-600 hover:underline font-medium">View</a></div>}
+          {property.lender && <div><div className="text-xs text-gray-500">Lender</div><div className="font-medium">{property.lender}</div></div>}
+          {property.due_diligence_url && <div><div className="text-xs text-gray-500">DD URL</div><a href={property.due_diligence_url} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline font-medium">View</a></div>}
+          {property.due_diligence_start_date && <div><div className="text-xs text-gray-500">DD Start</div><div className="font-medium">{new Date(property.due_diligence_start_date).toLocaleDateString()}</div></div>}
+          {property.due_diligence_end_date && <div><div className="text-xs text-gray-500">DD End</div><div className="font-medium">{new Date(property.due_diligence_end_date).toLocaleDateString()}</div></div>}
+          {property.financing_confirmed_date && <div><div className="text-xs text-gray-500">Financing Confirmed</div><div className="font-medium">{new Date(property.financing_confirmed_date).toLocaleDateString()}</div></div>}
+          {property.close_price != null && <div><div className="text-xs text-gray-500">Close Price</div><div className="font-medium">${property.close_price.toLocaleString()}</div></div>}
+          {property.close_date && <div><div className="text-xs text-gray-500">Close Date</div><div className="font-medium">{new Date(property.close_date).toLocaleDateString()}</div></div>}
+          {property.num_lots != null && <div><div className="text-xs text-gray-500">Lots</div><div className="font-medium">{property.num_lots}</div></div>}
+          {property.total_lot_proceeds != null && <div><div className="text-xs text-gray-500">Lot Proceeds</div><div className="font-medium">${property.total_lot_proceeds.toLocaleString()}</div></div>}
+          {property.underwriting_url && <div><div className="text-xs text-gray-500">Underwriting</div><a href={property.underwriting_url} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline font-medium">View</a></div>}
         </div>
 
         {/* Actions */}
@@ -189,15 +239,49 @@ export default function PropertyDetailPage() {
         </div>
 
         {showAdvance && (
-          <div className="mt-4 p-4 bg-gray-50 rounded border border-gray-200">
+          <div className="mt-4 p-4 bg-gray-50 rounded border border-gray-200 space-y-3">
             <div className="flex gap-3 items-start">
-              <select value={selectedNextStage} onChange={e => setSelectedNextStage(e.target.value as PropertyStage)} className="border border-gray-300 rounded px-3 py-2 text-sm">
+              <select
+                value={selectedNextStage}
+                onChange={e => handleStageSelect(e.target.value as PropertyStage)}
+                className="border border-gray-300 rounded px-3 py-2 text-sm"
+              >
                 <option value="">Select next stage…</option>
                 {nextStages.map(s => <option key={s} value={s}>{PROPERTY_STAGE_LABELS[s]}</option>)}
               </select>
-              <input value={advanceNote} onChange={e => setAdvanceNote(e.target.value)} placeholder="Optional note…" className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm" />
-              <button onClick={advanceStage} disabled={!selectedNextStage} className="px-4 py-2 bg-indigo-600 text-white rounded text-sm font-medium disabled:opacity-50">Advance</button>
+              <input
+                value={advanceNote}
+                onChange={e => setAdvanceNote(e.target.value)}
+                placeholder="Optional note…"
+                className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm"
+              />
+              <button
+                onClick={advanceStage}
+                disabled={!selectedNextStage || extraFieldDefs.some(f => f.required && !extraFields[f.key])}
+                className="px-4 py-2 bg-indigo-600 text-white rounded text-sm font-medium disabled:opacity-50"
+              >
+                Advance
+              </button>
             </div>
+            {extraFieldDefs.length > 0 && (
+              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-gray-200">
+                {extraFieldDefs.map(def => (
+                  <div key={def.key}>
+                    <label className="text-xs text-gray-600 font-medium">
+                      {def.label}{def.required && <span className="text-red-500 ml-0.5">*</span>}
+                    </label>
+                    <input
+                      type={def.type}
+                      required={def.required}
+                      value={extraFields[def.key] || ''}
+                      onChange={e => setExtraFields(prev => ({ ...prev, [def.key]: e.target.value }))}
+                      className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm mt-1"
+                      step={def.type === 'number' ? 'any' : undefined}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -236,7 +320,14 @@ export default function PropertyDetailPage() {
       {showLots && (
         <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold">Lot Sales</h2>
+            <div>
+              <h2 className="text-lg font-semibold">Lot Sales</h2>
+              {property.num_lots != null && (
+                <div className="text-sm text-gray-500 mt-0.5">
+                  {property.num_lots} lots · ${(property.total_lot_proceeds || 0).toLocaleString()} total proceeds
+                </div>
+              )}
+            </div>
             <button onClick={() => setShowLotForm(true)} className="px-3 py-1.5 bg-indigo-600 text-white rounded text-sm">+ Add Lot</button>
           </div>
           {showLotForm && (
