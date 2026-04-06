@@ -86,7 +86,9 @@ export async function GET(request: NextRequest) {
   // Capital metrics
   const offerProps = props.filter(p => p.offer_amount && p.offer_amount > 0)
   const expectedCapital = offerProps.reduce((sum, p) => sum + (p.offer_amount || 0) * 0.6, 0)
-  const underContractProps = props.filter(p => ['SIGNED_ACCEPTED','DUE_DILIGENCE_STARTED','DUE_DILIGENCE_COMPLETED','FINANCING_CONFIRMED'].includes(p.stage))
+  const activeStages = ['SIGNED_ACCEPTED','DUE_DILIGENCE_STARTED','DUE_DILIGENCE_COMPLETED','FINANCING_CONFIRMED']
+  const underContractProps = props.filter(p => activeStages.includes(p.stage))
+  const activeDeals = underContractProps.length
   const activeDealValue = underContractProps.reduce((sum, p) => sum + (p.asking_price || 0), 0)
   const lotsProps = props.filter(p => p.stage === 'LOTS_SOLD')
   const totalLotsSold = lotsProps.reduce((sum, p) => sum + (p.num_lots || 0), 0)
@@ -97,6 +99,7 @@ export async function GET(request: NextRequest) {
     propertyStages,
     avgDaysPerStage,
     expectedCapital,
+    activeDeals,
     activeDealValue,
     totalLotsSold,
     totalLotProceeds,
