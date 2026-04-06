@@ -34,6 +34,8 @@ function PropertiesContent() {
   const [search, setSearch] = useState('')
   const [stageFilter, setStageFilter] = useState('')
   const [zoneFilter, setZoneFilter] = useState(searchParams.get('hot_zone_id') || '')
+  const [minPrice, setMinPrice] = useState('')
+  const [maxPrice, setMaxPrice] = useState('')
   const [form, setForm] = useState({ apn: '', county: '', state: '', acreage: '', asking_price: '', hot_zone_id: '', underwriting_url: '' })
 
   const load = async () => {
@@ -42,6 +44,8 @@ function PropertiesContent() {
     if (search) params.set('q', search)
     if (stageFilter) params.set('stage', stageFilter)
     if (zoneFilter) params.set('hot_zone_id', zoneFilter)
+    if (minPrice) params.set('min_price', minPrice)
+    if (maxPrice) params.set('max_price', maxPrice)
     const [pRes, zRes] = await Promise.all([
       fetch(`/api/properties?${params}`),
       fetch('/api/hot-zones'),
@@ -51,7 +55,7 @@ function PropertiesContent() {
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [search, stageFilter, zoneFilter])
+  useEffect(() => { load() }, [search, stageFilter, zoneFilter, minPrice, maxPrice])
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -84,7 +88,7 @@ function PropertiesContent() {
       </div>
 
       <div className="flex gap-3 mb-5 flex-wrap">
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search APN, county…" className="border border-gray-300 rounded px-3 py-2 text-sm flex-1 min-w-[200px]" />
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search APN, county…" className="border border-gray-300 rounded px-3 py-2 text-sm flex-1 min-w-[180px]" />
         <select value={stageFilter} onChange={e => setStageFilter(e.target.value)} className="border border-gray-300 rounded px-3 py-2 text-sm">
           <option value="">All stages</option>
           {Object.entries(PROPERTY_STAGE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
@@ -93,6 +97,25 @@ function PropertiesContent() {
           <option value="">All hot zones</option>
           {hotZones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}
         </select>
+        <input
+          type="number"
+          value={minPrice}
+          onChange={e => setMinPrice(e.target.value)}
+          placeholder="Min price ($)"
+          className="border border-gray-300 rounded px-3 py-2 text-sm w-32"
+        />
+        <input
+          type="number"
+          value={maxPrice}
+          onChange={e => setMaxPrice(e.target.value)}
+          placeholder="Max price ($)"
+          className="border border-gray-300 rounded px-3 py-2 text-sm w-32"
+        />
+        {(minPrice || maxPrice) && (
+          <button onClick={() => { setMinPrice(''); setMaxPrice('') }} className="text-sm text-gray-500 hover:text-gray-700 px-2">
+            Clear price
+          </button>
+        )}
       </div>
 
       {showForm && (
