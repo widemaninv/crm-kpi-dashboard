@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { ALL_STAGES } from '@/types'
+import { ALL_STAGES, HotZone } from '@/types'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 
 interface DashboardData {
@@ -10,6 +10,7 @@ interface DashboardData {
   avgDaysPerStage: Record<string, number>
   expectedCapital: number
   activeDealValue: number
+  activeDeals: number
   totalLotsSold: number
   totalLotProceeds: number
   totals: { hotZones: number; properties: number }
@@ -18,14 +19,22 @@ interface DashboardData {
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [period, setPeriod] = useState('all')
+  const [hotZoneId, setHotZoneId] = useState('')
+  const [hotZones, setHotZones] = useState<HotZone[]>([])
   const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/hot-zones').then(r => r.json()).then(setHotZones).catch(() => {})
+  }, [])
 
   const load = useCallback(async () => {
     setLoading(true)
-    const res = await fetch(`/api/dashboard?period=${period}`)
+    const params = new URLSearchParams({ period })
+    if (hotZoneId) params.set('hot_zone_id', hotZoneId)
+    const res = await fetch(`/api/dashboard?${params}`)
     if (res.ok) setData(await res.json())
     setLoading(false)
-  }, [period])
+  }, [period, hotZoneId])
 
   useEffect(() => { load() }, [load])
 
@@ -56,7 +65,19 @@ export default function DashboardPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">KPI Funnel Dashboard</h1>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          {/* Hot zone filter */}
+          <select
+            value={hotZoneId}
+            onChange={e => setHotZoneId(e.target.value)}
+            className="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white text-gray-700"
+          >
+            <option value="">All Hot Zones</option>
+            {hotZones.map(z => (
+              <option key={z.id} value={z.id}>{z.name}</option>
+            ))}
+          </select>
+          {/* Period toggle */}
           {(['all', 'monthly', 'weekly'] as const).map(p => (
             <button
               key={p}
@@ -73,8 +94,9 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <StatCard label="Total Hot Zones" value={data?.totals.hotZones ?? 0} />
         <StatCard label="Total Properties" value={data?.totals.properties ?? 0} />
-        <StatCard label="Expected Capital" value={fmt(data?.expectedCapital ?? 0)} />
+        <StatCard label="Active Deals" value={data?.activeDeals ?? 0} />
         <StatCard label="Active Deal Value" value={fmt(data?.activeDealValue ?? 0)} />
+        <StatCard label="Expected Capital" value={fmt(data?.expectedCapital ?? 0)} />
         <StatCard label="Lots Sold" value={data?.totalLotsSold ?? 0} />
         <StatCard label="Lot Proceeds" value={fmt(data?.totalLotProceeds ?? 0)} />
       </div>
