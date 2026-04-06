@@ -7,6 +7,8 @@ export async function GET(request: NextRequest) {
   const stage = searchParams.get('stage')
   const hot_zone_id = searchParams.get('hot_zone_id')
   const q = searchParams.get('q')
+  const min_price = searchParams.get('min_price')
+  const max_price = searchParams.get('max_price')
 
   let query = supabase
     .from('properties_crm')
@@ -17,6 +19,8 @@ export async function GET(request: NextRequest) {
   if (stage) query = query.eq('stage', stage)
   if (hot_zone_id) query = query.eq('hot_zone_id', hot_zone_id)
   if (q) query = query.or(`apn.ilike.%${q}%,county.ilike.%${q}%`)
+  if (min_price) query = query.gte('asking_price', parseFloat(min_price))
+  if (max_price) query = query.lte('asking_price', parseFloat(max_price))
 
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
